@@ -69,11 +69,12 @@ async function* streamOpenAI(body, apiKey, baseUrl = 'https://api.openai.com/v1'
     const lines = buf.split('\n');
     buf = lines.pop() || '';
     for (const line of lines) {
-      if (line.startsWith('data: ')) yield line.slice(6) + '\n';
+      if (line.startsWith('data: ')) yield line + '\n';
     }
   }
 }
 
+// Also fix the Anthropic, Gemini, Ollama streams the same way...
 async function* streamAnthropic(body, apiKey) {
   const messages = body.messages || [];
   const sys = messages.filter(m => m.role === 'system').pop();
