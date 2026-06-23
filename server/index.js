@@ -13,9 +13,11 @@ const configPath = process.env.EMII_CONFIG || path.join(process.env.APPDATA || '
 function loadConfig() {
   // 1. Try env vars first (Render, cloud)
   if (process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY) {
+    const key = process.env.OPENAI_API_KEY || '';
+    const baseUrl = process.env.OPENAI_BASE_URL || (key.startsWith('sk-or-') ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1');
     return {
       emiiApiKey: process.env.EMII_API_KEY || '',
-      openai: process.env.OPENAI_API_KEY || '',
+      openai: key, openaiBaseUrl: baseUrl,
       anthropic: process.env.ANTHROPIC_API_KEY || '',
       gemini: process.env.GEMINI_API_KEY || '',
       emiiUrl: process.env.EMII_API_URL || '',
@@ -26,15 +28,17 @@ function loadConfig() {
     const raw = fs.readFileSync(configPath, 'utf8');
     const cfg = JSON.parse(raw);
     const keys = cfg.ApiKeys || {};
+    const oKey = keys.OpenAI || '';
+    const oBase = oKey.startsWith('sk-or-') ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1';
     return {
       emiiApiKey: keys.EmiiAPI || '',
-      openai: keys.OpenAI || '',
+      openai: oKey, openaiBaseUrl: oBase,
       anthropic: keys.Anthropic || '',
       gemini: keys.Gemini || '',
       emiiUrl: cfg.EmiiApiUrl || '',
     };
   } catch {
-    return { emiiApiKey: '', openai: '', anthropic: '', gemini: '', emiiUrl: '' };
+    return { emiiApiKey: '', openai: '', anthropic: '', gemini: '', emiiUrl: '', openaiBaseUrl: 'https://api.openai.com/v1' };
   }
 }
 
@@ -48,8 +52,8 @@ function detectProvider(model) {
   return 'openai';
 }
 
-async function* streamOpenAI(body, apiKey) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+async function* streamOpenAI(body, apiKey, baseUrl = 'https://api.openai.com/v1') {
+  const res = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ ...body, stream: true }),
@@ -196,8 +200,8 @@ app.post('/v1/chat/completions', async (req, res) => {
         gen = streamOllama(req.body);
         break;
       default:
-        if (!cfg.openai) throw new Error('OpenAI API anahtari yok (Settings > OpenAI)');
-        gen = streamOpenAI(req.body, cfg.openai);
+        if (!cfg.openai) throw new Error('OpenAI/OpenRouter API anahtari yok (Settings > OpenAI)');
+        gen = streamOpenAI(req.body, cfg.openai, cfg.openaiBaseUrl);
         break;
     }
 
@@ -206,7 +210,7 @@ app.post('/v1/chat/completions', async (req, res) => {
       res.end();
     } else {
       const result = await (async () => {
-        const res2 = await fetch('https://api.openai.com/v1/chat/completions', {
+        const res2 = await fetch(`${cfg.openaiBaseUrl}/chat/completions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.openai}` },
           body: JSON.stringify(req.body),
@@ -237,6 +241,7 @@ app.get('/', (req, res) => {
   const cfg = loadConfig();
   res.json({
     name: 'EmiiAPI', version: '1.0.0', status: 'running',
+    openai_base: cfg.openaiBaseUrl || 'https://api.openai.com/v1',
     providers: {
       openai: !!cfg.openai, anthropic: !!cfg.anthropic, gemini: !!cfg.gemini, ollama: true,
     }
