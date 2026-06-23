@@ -11,6 +11,17 @@ const PORT = process.env.PORT || 6142;
 const configPath = process.env.EMII_CONFIG || path.join(process.env.APPDATA || '.', 'EmiiPilot', 'config.json');
 
 function loadConfig() {
+  // 1. Try env vars first (Render, cloud)
+  if (process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY) {
+    return {
+      emiiApiKey: process.env.EMII_API_KEY || '',
+      openai: process.env.OPENAI_API_KEY || '',
+      anthropic: process.env.ANTHROPIC_API_KEY || '',
+      gemini: process.env.GEMINI_API_KEY || '',
+      emiiUrl: process.env.EMII_API_URL || '',
+    };
+  }
+  // 2. Fallback: local config.json
   try {
     const raw = fs.readFileSync(configPath, 'utf8');
     const cfg = JSON.parse(raw);
