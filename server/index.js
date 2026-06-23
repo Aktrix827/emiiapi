@@ -230,7 +230,22 @@ app.post('/v1/chat/completions', async (req, res) => {
 app.get('/v1/models', (req, res) => {
   const cfg = loadConfig();
   const models = [];
-  if (cfg.openai) models.push({ id: 'gpt-4o-mini', provider: 'openai' }, { id: 'gpt-4o', provider: 'openai' });
+  if (cfg.openai) {
+    const isOR = cfg.openaiBaseUrl?.includes('openrouter');
+    if (isOR) {
+      models.push(
+        { id: 'openai/gpt-oss-120b:free', provider: 'openai', free: true },
+        { id: 'openai/gpt-oss-20b:free', provider: 'openai', free: true },
+        { id: 'qwen/qwen3-coder:free', provider: 'openai', free: true },
+        { id: 'qwen/qwen3-next-80b-a3b-instruct:free', provider: 'openai', free: true },
+        { id: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openai', free: true },
+        { id: 'google/gemma-4-26b-a4b-it:free', provider: 'openai', free: true },
+        { id: 'google/gemma-4-31b-it:free', provider: 'openai', free: true },
+      );
+    } else {
+      models.push({ id: 'gpt-4o-mini', provider: 'openai' }, { id: 'gpt-4o', provider: 'openai' });
+    }
+  }
   if (cfg.anthropic) models.push({ id: 'claude-sonnet-4-20250514', provider: 'anthropic' });
   if (cfg.gemini) models.push({ id: 'gemini-2.0-flash', provider: 'gemini' });
   models.push({ id: 'emii-model', provider: 'auto' }, { id: 'ollama/llama3', provider: 'ollama' });
