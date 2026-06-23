@@ -53,9 +53,15 @@ function detectProvider(model) {
 }
 
 async function* streamOpenAI(body, apiKey, baseUrl = 'https://api.openai.com/v1') {
+  const isOpenRouter = baseUrl.includes('openrouter');
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` };
+  if (isOpenRouter) {
+    headers['HTTP-Referer'] = process.env.SITE_URL || 'https://emiiapi-1.onrender.com';
+    headers['X-Title'] = process.env.SITE_NAME || 'EmiiAPI';
+  }
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    headers,
     body: JSON.stringify({ ...body, stream: true }),
   });
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
@@ -211,10 +217,11 @@ app.post('/v1/chat/completions', async (req, res) => {
       res.end();
     } else {
       const result = await (async () => {
+        const isOR = cfg.openaiBaseUrl?.includes('openrouter');
+        const hdrs = { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.openai}` };
+        if (isOR) { hdrs['HTTP-Referer'] = process.env.SITE_URL || 'https://emiiapi-1.onrender.com'; hdrs['X-Title'] = 'EmiiAPI'; }
         const res2 = await fetch(`${cfg.openaiBaseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.openai}` },
-          body: JSON.stringify(req.body),
+          method: 'POST', headers: hdrs, body: JSON.stringify({...req.body, stream: false}),
         });
         return res2.json();
       })();
